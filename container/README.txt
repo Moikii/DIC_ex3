@@ -11,3 +11,8 @@ curl http://localhost:5000/api/detect -d "input=./images/filename.jpg"
 curl http://localhost:5000/api/detect -d "input=./images/filename.jpg&output=1"
 
 
+
+USE THIS INSTEAD (for windows)
+docker build -t dic-assignment .
+
+winpty docker run --rm -it -p 5000:5000 dic-assignment

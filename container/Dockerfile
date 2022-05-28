@@ -6,7 +6,6 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends curl python3
 RUN echo "[global]\nextra-index-url=https://www.piwheels.org/simple" >> /etc/pip.conf
 
 RUN useradd -ms /bin/bash vincenzo
-COPY . /app
 
 
 #Copy the requirements.txt to leverage Docker cache
@@ -15,6 +14,8 @@ WORKDIR /app
 
 # Upgrade pip and install requirements
 RUN pip3 install --upgrade pip; pip3 install --no-cache-dir -r requirements.txt;
+
+COPY . /app
 RUN ls
 
 ENTRYPOINT [ "python3" ]

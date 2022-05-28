@@ -5,6 +5,5 @@ Pillow
 numpy
 opencv-python
 fastapi
-tflite
 tensorflow
-tflite-runtime
+tensorflow-hub
