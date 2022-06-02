@@ -129,8 +129,40 @@ def detection_loop(filename_image):
 #initializing the flask app
 app = Flask(__name__)
 
+@app.route('/api/detect', methods=['POST', 'GET'])
+def main():
+  data_input = request.values.get('input')
+
+  path = data_input
+  filename_image = {}
+  
+  input_format = ["jpg", "png", "jpeg"]
+  if data_input.find(".") != -1:
+      print(data_input + " is a file")
+      split_data_input = data_input.split(".", 1)
+      if data_input.endswith(tuple(input_format)):
+          print("INPUT FORMAT: %s IS VALID" % split_data_input[1])
+          path_splitted = re.split('/', data_input)
+          filename = path_splitted[-1]
+          filename_image[filename] = Image.open(data_input)
+  else:
+      print(data_input + " is a path with the following files: ")
+      for filename in os.listdir(data_input):
+          image_path = data_input + filename
+          filename_image[filename] = Image.open(image_path)
+          print("  " + filename)
+  
+  result = detection_loop(filename_image)
+
+  for filename, image in result.items(): 
+      image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
+      cv2.imwrite('./output/' + filename, image)
+  
+  status_code = Response(status = 200)
+  return status_code
+
 #routing http posts to this method
-@app.route('/api/detect', methods=['POST'])
+@app.route('/api/detect/image', methods=['POST'])
 def detect():
     image = request.files["images"]
     pil_image = Image.open(image.stream)
@@ -142,7 +174,7 @@ def detect():
     
     result = detection_loop(filename_image)
 
-    image = list(result.values())[0]
+    image = result[image_name]
     image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
     _, img_encoded = cv2.imencode('.jpg', image)
     response = img_encoded.tostring()
