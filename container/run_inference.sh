@@ -9,5 +9,5 @@ for FILE in "$InputFolder"/*; do
     filename=$(basename -- "$FILE")
     filename="${filename%.*}"
     echo "$OutputFolder/$filename.jpg"
-    curl http://localhost:5000/api/detect -F images=@"$FILE" > "$OutputFolder/$filename.jpg"
+    curl http://localhost:5000/api/detect/image -F images=@"$FILE" > "$OutputFolder/$filename.jpg"
 done
