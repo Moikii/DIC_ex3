@@ -153,7 +153,9 @@ def main():
           print("  " + filename)
   
   result = detection_loop(filename_image)
-
+  
+  os.makedirs('./output/', exist_ok = True)
+  
   for filename, image in result.items(): 
       image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
       cv2.imwrite('./output/' + filename, image)
