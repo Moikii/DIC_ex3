@@ -8,7 +8,7 @@ winpty docker run --rm -it -p 5000:5000 dic-assignment
 1st Option uploads the path (server already has the images)
 
 # Use 1st endpoint to provide path 
-curl http://localhost:5000/api/detect -d "input=images/"
+time curl http://localhost:5000/api/detect -d "input=images/"
 
 # get images from Docker container (when using 1st endpoint)
 docker cp <docker_name>:/app/output ./output/

@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from urllib import response
 from PIL import Image
 from PIL import ImageDraw
 from PIL import ImageColor
@@ -26,12 +27,11 @@ import cv2
 import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
+from time import time
 
 
 #module_handle = "https://tfhub.dev/google/faster_rcnn/openimages_v4/inception_resnet_v2/1"
 module_handle = "https://tfhub.dev/google/openimages_v4/ssd/mobilenet_v2/1"
-
-
 
 detector = hub.load(module_handle).signatures['default']
 
@@ -109,9 +109,14 @@ def draw_boxes(image, boxes, class_names, scores, max_boxes=10, min_score=0.1):
 
 def detection_loop(filename_image):
     result_images = {}
+    inference_time = 0
     for filename, image in filename_image.items(): 
         converted_img  = tf.image.convert_image_dtype(image, tf.float32)[tf.newaxis, ...]
+        start_time = time()
         result = detector(converted_img)
+        end_time = time()
+
+        inference_time = inference_time + end_time - start_time
 
         result = {key:value.numpy() for key,value in result.items()}
 
@@ -123,7 +128,7 @@ def detection_loop(filename_image):
 
         result_images[filename] = image_with_boxes
         
-    return result_images
+    return result_images, inference_time
 
 
 #initializing the flask app
@@ -152,7 +157,7 @@ def main():
           filename_image[filename] = Image.open(image_path)
           print("  " + filename)
   
-  result = detection_loop(filename_image)
+  result, inference_time = detection_loop(filename_image)
   
   os.makedirs('./output/', exist_ok = True)
   
@@ -160,7 +165,12 @@ def main():
       image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
       cv2.imwrite('./output/' + filename, image)
   
-  status_code = Response(status = 200)
+  response = {
+    'inference_time': inference_time, 
+    'number_of_images': len(filename_image), 
+    'average_inference_time': inference_time/len(filename_image)
+  }
+  status_code = Response(response = str(response), status = 200)
   return status_code
 
 #routing http posts to this method
@@ -174,7 +184,7 @@ def detect():
     filename_image = {image_name: pil_image}
 
     
-    result = detection_loop(filename_image)
+    result, inference_time = detection_loop(filename_image)
 
     image = result[image_name]
     image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
@@ -185,7 +195,6 @@ def detect():
         return Response(response=response, status=200, mimetype='image/jpg')
     except FileNotFoundError:
         abort(404)
-
 
 if __name__ == '__main__':
     app.run(debug = True, host = '0.0.0.0')
