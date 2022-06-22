@@ -28,6 +28,19 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
 from time import time
+import json
+from json import JSONEncoder
+
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
 
 
 #module_handle = "https://tfhub.dev/google/faster_rcnn/openimages_v4/inception_resnet_v2/1"
@@ -107,8 +120,8 @@ def draw_boxes(image, boxes, class_names, scores, max_boxes=10, min_score=0.1):
     return image
 
 
-def detection_loop(filename_image):
-    result_images = {}
+def detection_loop(filename_image, as_json = False):
+    all_result = {}
     inference_time = 0
     for filename, image in filename_image.items(): 
         converted_img  = tf.image.convert_image_dtype(image, tf.float32)[tf.newaxis, ...]
@@ -122,13 +135,22 @@ def detection_loop(filename_image):
 
         print("Found %d objects." % len(result["detection_scores"]))
 
-        image_with_boxes = draw_boxes(
-            np.array(image), result["detection_boxes"],
-            result["detection_class_entities"], result["detection_scores"])
-
-        result_images[filename] = image_with_boxes
+        if as_json: 
+            result_dict = {
+                k: result[k] for k in ['detection_boxes', 'detection_scores']
+            }
+            result_classes = [class_name.decode("ascii") for class_name in result['detection_class_entities']]
+            result_dict['detection_class_entities'] = result_classes
+            all_result[filename] = result_dict
         
-    return result_images, inference_time
+        else: 
+            image_with_boxes = draw_boxes(
+                np.array(image), result["detection_boxes"],
+                result["detection_class_entities"], result["detection_scores"])
+
+            all_result[filename] = image_with_boxes
+        
+    return all_result, inference_time
 
 
 #initializing the flask app
@@ -174,7 +196,7 @@ def main():
   return status_code
 
 #routing http posts to this method
-@app.route('/api/detect/image', methods=['POST'])
+@app.route('/api/detect/image', methods=['POST', 'GET'])
 def detect():
     image = request.files["images"]
     pil_image = Image.open(image.stream)
@@ -195,6 +217,42 @@ def detect():
         return Response(response=response, status=200, mimetype='image/jpg')
     except FileNotFoundError:
         abort(404)
+
+#routing http posts to this method
+@app.route('/api/detect/json', methods=['POST'])
+def detect2():
+    data_input = request.values.get('input')
+
+    path = data_input
+    filename_image = {}
+    
+    input_format = ["jpg", "png", "jpeg"]
+    if data_input.find(".") != -1:
+        print(data_input + " is a file")
+        split_data_input = data_input.split(".", 1)
+        if data_input.endswith(tuple(input_format)):
+            print("INPUT FORMAT: %s IS VALID" % split_data_input[1])
+            path_splitted = re.split('/', data_input)
+            filename = path_splitted[-1]
+            filename_image[filename] = Image.open(data_input)
+    else:
+        print(data_input + " is a path with the following files: ")
+        for filename in os.listdir(data_input):
+            image_path = data_input + filename
+            filename_image[filename] = Image.open(image_path)
+            print("  " + filename)
+  
+    result, inference_time = detection_loop(filename_image, as_json = True)
+    response = {
+        'inference_time': inference_time, 
+        'number_of_images': len(filename_image), 
+        'average_inference_time': inference_time/len(filename_image),
+        'result': result
+    }
+
+    status_code = Response(response = json.dumps(response, cls=NumpyEncoder), status = 200)
+    return status_code
+
 
 if __name__ == '__main__':
     app.run(debug = True, host = '0.0.0.0')
