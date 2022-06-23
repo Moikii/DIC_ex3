@@ -29,4 +29,4 @@ time curl http://localhost:5000/api/detect/json -d "input=images/"
 
 
 # Detect all images in folder (run within container)
-source run_inference.sh images output
+time source run_inference.sh images output
