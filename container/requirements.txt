@@ -3,6 +3,7 @@ pybase64
 jsonpickle
 Pillow
 numpy
+tqdm
 opencv-python
 fastapi
 tensorflow

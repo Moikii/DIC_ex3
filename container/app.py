@@ -21,6 +21,8 @@ from PIL import ImageDraw
 from PIL import ImageFont
 from PIL import ImageOps
 import os
+
+from tqdm import tqdm
 from flask import Flask, request, Response, jsonify, abort
 import re
 import cv2
@@ -29,7 +31,7 @@ import tensorflow as tf
 import tensorflow_hub as hub
 from time import time
 import json
-from json import JSONEncoder
+from tqdm import tqdm
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -123,8 +125,9 @@ def draw_boxes(image, boxes, class_names, scores, max_boxes=10, min_score=0.1):
 def detection_loop(filename_image, as_json = False):
     all_result = {}
     inference_time = 0
-    for filename, image in filename_image.items(): 
+    for filename, image in tqdm(filename_image.items()): 
         converted_img  = tf.image.convert_image_dtype(image, tf.float32)[tf.newaxis, ...]
+        print(filename)
         start_time = time()
         result = detector(converted_img)
         end_time = time()
@@ -171,12 +174,12 @@ def main():
           print("INPUT FORMAT: %s IS VALID" % split_data_input[1])
           path_splitted = re.split('/', data_input)
           filename = path_splitted[-1]
-          filename_image[filename] = Image.open(data_input)
+          filename_image[filename] = Image.open(data_input).convert('RGB')
   else:
       print(data_input + " is a path with the following files: ")
       for filename in os.listdir(data_input):
           image_path = data_input + filename
-          filename_image[filename] = Image.open(image_path)
+          filename_image[filename] = Image.open(image_path).convert('RGB')
           print("  " + filename)
   
   result, inference_time = detection_loop(filename_image)
@@ -199,7 +202,7 @@ def main():
 @app.route('/api/detect/image', methods=['POST', 'GET'])
 def detect():
     image = request.files["images"]
-    pil_image = Image.open(image.stream)
+    pil_image = Image.open(image.stream).convert('RGB')
     image_name = image.filename
 
     pil_image = ImageOps.fit(pil_image, (512, 512), Image.ANTIALIAS)
@@ -234,12 +237,12 @@ def detect2():
             print("INPUT FORMAT: %s IS VALID" % split_data_input[1])
             path_splitted = re.split('/', data_input)
             filename = path_splitted[-1]
-            filename_image[filename] = Image.open(data_input)
+            filename_image[filename] = Image.open(data_input).convert('RGB')
     else:
         print(data_input + " is a path with the following files: ")
         for filename in os.listdir(data_input):
             image_path = data_input + filename
-            filename_image[filename] = Image.open(image_path)
+            filename_image[filename] = Image.open(image_path).convert('RGB')
             print("  " + filename)
   
     result, inference_time = detection_loop(filename_image, as_json = True)
